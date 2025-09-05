@@ -1,0 +1,745 @@
+openapi: 3.0.3
+info:
+  title: Sistema Conjuntos Residenciales API
+  description: |
+    Backend API REST para sistema de gestión de conjuntos residenciales.
+    
+    Implementa todos los flujos especificados en el documento del proyecto universitario:
+    - Registro y gestión de huéspedes Airbnb con notificaciones automáticas
+    - Programación de mantenimientos con notificación masiva
+    - Reportes de daños de arrendatarios/huéspedes hacia propietarios
+    - Sistema de mensualidades con notificaciones de mora
+    - Endpoints completos para aplicación móvil
+    
+  version: 1.0.0
+  contact:
+    name: Proyecto Universitario
+    email: estudiante@universidad.edu
+  license:
+    name: ISC
+    
+servers:
+  - url: http://localhost:3000
+    description: Servidor de desarrollo
+
+tags:
+  - name: Auth
+    description: Autenticación y autorización
+  - name: Airbnb
+    description: Gestión de huéspedes Airbnb (Flujo principal del documento)
+  - name: Maintenance
+    description: Mantenimientos programados
+  - name: Damage Reports
+    description: Reportes de daños
+  - name: Notifications
+    description: Sistema de notificaciones
+  - name: Payments
+    description: Mensualidades y pagos
+  - name: System
+    description: Health check y sistema
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Health Check del Sistema
+      description: Endpoint para verificar estado del API y ver endpoints disponibles
+      responses:
+        200:
+          description: Sistema funcionando correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+                  message:
+                    type: string
+                    example: 🏢 Sistema Conjuntos Residenciales API
+                  timestamp:
+                    type: string
+                    format: date-time
+                  features:
+                    type: object
+                    description: Funcionalidades implementadas según documento
+                  endpoints:
+                    type: object
+                    description: Endpoints principales organizados por funcionalidad
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar Sesión
+      description: Autenticar usuario en el sistema
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@residencial.com
+                password:
+                  type: string
+                  example: admin123
+      responses:
+        200:
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                      user:
+                        $ref: '#/components/schemas/User'
+                  message:
+                    type: string
+                    example: Login exitoso
+
+  /api/airbnb/guests:
+    post:
+      tags: [Airbnb]
+      summary: Registrar Huésped Airbnb (Flujo Principal)
+      description: |
+        **FLUJO PRINCIPAL DEL DOCUMENTO:**
+        1. Propietario registra huésped con datos completos
+        2. Sistema notifica automáticamente:
+           - Al propietario (apartamento ocupado)
+           - Al administrador (control de seguridad)
+           - A portería (registro de entrada)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [apartmentId, guestName, guestCedula, numberOfGuests, checkInDate, checkOutDate]
+              properties:
+                apartmentId:
+                  type: integer
+                  example: 1
+                guestName:
+                  type: string
+                  example: Juan Pérez García
+                guestCedula:
+                  type: string
+                  example: "12345678"
+                numberOfGuests:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  example: 2
+                checkInDate:
+                  type: string
+                  format: date
+                  example: "2025-01-01"
+                checkOutDate:
+                  type: string
+                  format: date
+                  example: "2025-01-07"
+      responses:
+        201:
+          description: Huésped registrado exitosamente con notificaciones automáticas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AirbnbGuest'
+                  message:
+                    type: string
+                    example: Huésped Airbnb registrado exitosamente. Sistema notificó automáticamente.
+
+  /api/airbnb/guests/{id}/checkin:
+    put:
+      tags: [Airbnb]
+      summary: Check-in por Portería
+      description: |
+        **FLUJO PORTERÍA:** Vigilancia registra llegada de huésped.
+        Genera notificación automática al propietario y administrador.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Check-in realizado con notificación automática
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      status:
+                        type: string
+                        example: checked_in
+                      timestamp:
+                        type: string
+                        format: date-time
+                  message:
+                    type: string
+                    example: Check-in realizado por portería. Notificación automática enviada.
+
+  /api/airbnb/guests/active:
+    get:
+      tags: [Airbnb]
+      summary: Huéspedes Activos (Control Seguridad)
+      description: |
+        **PARA ADMINISTRADOR:** Lista de huéspedes actualmente en el conjunto
+        para control de seguridad según documento.
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Lista de huéspedes activos para control de seguridad
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ActiveGuest'
+
+  /api/maintenance:
+    post:
+      tags: [Maintenance]
+      summary: Programar Mantenimiento
+      description: |
+        **FLUJO MANTENIMIENTOS:** Administrador programa mantenimiento.
+        Sistema notifica automáticamente a TODOS los residentes.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, description, area]
+              properties:
+                title:
+                  type: string
+                  example: Mantenimiento Piscina
+                description:
+                  type: string
+                  example: Limpieza y mantenimiento general de la piscina
+                area:
+                  type: string
+                  enum: [parque, piscina, ascensor, zonas_comunes, gym, salon_comunal]
+                  example: piscina
+                scheduledDate:
+                  type: string
+                  format: date
+                  example: "2025-01-15"
+                priority:
+                  type: string
+                  enum: [low, medium, high, urgent]
+                  default: medium
+      responses:
+        201:
+          description: Mantenimiento programado con notificaciones enviadas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Maintenance'
+                  message:
+                    type: string
+                    example: Mantenimiento programado. Todos los residentes han sido notificados.
+
+    get:
+      tags: [Maintenance]
+      summary: Ver Mantenimientos (App Móvil)
+      description: Endpoint para que usuarios vean mantenimientos en app móvil
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, in_progress, completed]
+        - name: area
+          in: query
+          schema:
+            type: string
+      responses:
+        200:
+          description: Lista de mantenimientos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Maintenance'
+
+  /api/damage-reports:
+    post:
+      tags: [Damage Reports]
+      summary: Reportar Daño
+      description: |
+        **FLUJO REPORTES:** Arrendatarios/huéspedes reportan daños.
+        Sistema notifica automáticamente al propietario del apartamento.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [apartmentId, title, description]
+              properties:
+                apartmentId:
+                  type: integer
+                  example: 1
+                title:
+                  type: string
+                  example: Fuga en baño principal
+                description:
+                  type: string
+                  example: Se detectó una fuga de agua en la ducha del baño principal
+                priority:
+                  type: string
+                  enum: [low, medium, high, urgent]
+                  default: medium
+      responses:
+        201:
+          description: Reporte creado con notificación al propietario
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/DamageReport'
+                  message:
+                    type: string
+                    example: Reporte de daño creado. Propietario ha sido notificado automáticamente.
+
+  /api/damage-reports/my-reports:
+    get:
+      tags: [Damage Reports]
+      summary: Mis Reportes (App Móvil)
+      description: Ver reportes de daño creados por el usuario actual
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Lista de reportes del usuario
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DamageReport'
+
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: Ver Notificaciones (App Móvil)
+      description: |
+        Endpoint principal para app móvil. Usuarios reciben:
+        - Notificaciones generales (mantenimientos)
+        - Notificaciones específicas (reportes de daños, Airbnb, pagos)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        200:
+          description: Lista de notificaciones para el usuario
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+
+    post:
+      tags: [Notifications]
+      summary: Enviar Notificación General (Admin)
+      description: Administrador envía notificaciones generales a residentes
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, message]
+              properties:
+                title:
+                  type: string
+                  example: Aviso Importante
+                message:
+                  type: string
+                  example: Reunión de propietarios programada para el próximo sábado
+                recipientType:
+                  type: string
+                  enum: [all, owners, tenants]
+                  default: all
+      responses:
+        201:
+          description: Notificación enviada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Notification'
+
+  /api/payments:
+    post:
+      tags: [Payments]
+      summary: Registrar Mensualidad
+      description: |
+        **SISTEMA MENSUALIDADES:** Cada apartamento tiene pago mensual.
+        Incluye servicios básicos (cancha, capilla, oficina) según documento.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [apartmentId, amount, dueDate]
+              properties:
+                apartmentId:
+                  type: integer
+                  example: 1
+                amount:
+                  type: number
+                  format: decimal
+                  example: 150000
+                dueDate:
+                  type: string
+                  format: date
+                  example: "2025-01-31"
+                description:
+                  type: string
+                  default: "Administración mensual - incluye servicios básicos (cancha, capilla, oficina)"
+      responses:
+        201:
+          description: Pago de administración registrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Payment'
+
+  /api/payments/overdue:
+    get:
+      tags: [Payments]
+      summary: Verificar Pagos en Mora
+      description: |
+        **NOTIFICACIONES AUTOMÁTICAS:** Sistema verifica pagos vencidos
+        y notifica automáticamente a propietarios según documento.
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Pagos en mora con notificaciones automáticas enviadas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OverduePayment'
+                  message:
+                    type: string
+                    example: Pagos en mora verificados. Propietarios notificados automáticamente.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Juan Pérez
+        email:
+          type: string
+          format: email
+          example: juan.perez@email.com
+        role:
+          type: string
+          enum: [admin, owner, tenant, airbnb_guest, security]
+          example: owner
+
+    AirbnbGuest:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        apartmentId:
+          type: integer
+          example: 1
+        guestName:
+          type: string
+          example: Juan Pérez García
+        guestCedula:
+          type: string
+          example: "12345678"
+        numberOfGuests:
+          type: integer
+          example: 2
+        checkInDate:
+          type: string
+          format: date
+          example: "2025-01-01"
+        checkOutDate:
+          type: string
+          format: date
+          example: "2025-01-07"
+        status:
+          type: string
+          enum: [pending, checked_in, checked_out]
+          example: pending
+        notifications:
+          type: array
+          items:
+            type: string
+          example: ["Notificación enviada al propietario", "Notificación enviada al administrador"]
+
+    ActiveGuest:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        apartmentNumber:
+          type: string
+          example: "101-A"
+        guestName:
+          type: string
+          example: Juan Pérez
+        guestCedula:
+          type: string
+          example: "12345678"
+        numberOfGuests:
+          type: integer
+          example: 2
+        status:
+          type: string
+          example: checked_in
+
+    Maintenance:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: Mantenimiento Piscina
+        description:
+          type: string
+          example: Limpieza y mantenimiento general
+        area:
+          type: string
+          example: piscina
+        status:
+          type: string
+          enum: [pending, in_progress, completed]
+          example: pending
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+          example: medium
+        scheduledDate:
+          type: string
+          format: date
+          example: "2025-01-15"
+
+    DamageReport:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        apartmentId:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: Fuga en baño principal
+        description:
+          type: string
+          example: Se detectó fuga en la ducha
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+          example: medium
+        status:
+          type: string
+          enum: [reported, acknowledged, in_progress, resolved]
+          example: reported
+        reportedBy:
+          type: integer
+          example: 1
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: Nuevo huésped Airbnb
+        message:
+          type: string
+          example: Se ha registrado un huésped en apartamento 101-A
+        type:
+          type: string
+          enum: [general, maintenance, payment, airbnb_checkin, damage_report]
+          example: airbnb_checkin
+        isRead:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        apartmentId:
+          type: integer
+          example: 1
+        amount:
+          type: number
+          format: decimal
+          example: 150000
+        dueDate:
+          type: string
+          format: date
+          example: "2025-01-31"
+        status:
+          type: string
+          enum: [pending, paid, overdue]
+          example: pending
+        description:
+          type: string
+          example: "Administración mensual - incluye servicios básicos"
+
+    OverduePayment:
+      type: object
+      properties:
+        apartmentId:
+          type: integer
+          example: 1
+        apartmentNumber:
+          type: string
+          example: "101-A"
+        amount:
+          type: number
+          example: 150000
+        daysPastDue:
+          type: integer
+          example: 5
+        ownerNotified:
+          type: boolean
+          example: true
+        notificationDate:
+          type: string
+          format: date-time

@@ -20,8 +20,31 @@ const rentalRoutes = require('./infrastructure/web/routes/rentalRoutes');
 const app = express();
 
 // Security middleware
-app.use(helmet());
-app.use(cors());
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", 'data:', 'blob:'],
+            upgradeInsecureRequests: []
+        }
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false
+}));
+
+app.use(cors({
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+}));
+
+// Rate limiting
+const { authLimiter, apiLimiter } = require('./infrastructure/web/middleware/rateLimiter');
+app.use('/api/auth', authLimiter);
+app.use('/api', apiLimiter);
 
 // Logging
 app.use(morgan('combined'));
